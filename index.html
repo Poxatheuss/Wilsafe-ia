@@ -10,7 +10,7 @@ h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:0 0 14px}.muted{color:
 label{font-weight:700;font-size:13px;display:block;margin:13px 0 6px}input,textarea,select{width:100%;padding:12px;border:1px solid #ccd5dc;border-radius:10px;font-size:16px;background:#fff}textarea{min-height:105px;resize:vertical}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.btn{border:0;border-radius:11px;padding:14px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:var(--c);color:white;width:100%;margin-top:16px}.secondary{background:#e9eff3;color:var(--b)}
 .badges{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.badge{background:#e7f8f7;color:#08756f;border-radius:20px;padding:6px 9px;font-size:12px}
-#result{display:none}.risk{border:1px solid #dce4e9;border-radius:12px;padding:13px;margin:10px 0}.risk strong{display:block;margin-bottom:5px}.actions{padding-left:20px}.warning{background:#fff7df;border-left:4px solid #e0a100;padding:10px;border-radius:6px;font-size:13px}
+#result{display:none}.risk{border:1px solid #dce4e9;border-radius:12px;padding:13px;margin:10px 0}.risk strong{display:block;margin-bottom:5px}.risk textarea{min-height:70px;margin-top:7px}.actions{padding-left:20px}.review{margin-top:12px;padding-top:10px;border-top:1px dashed #ccd5dc}.inventory{overflow-x:auto}.invtable{width:100%;border-collapse:collapse;font-size:13px}.invtable th,.invtable td{border:1px solid #dce4e9;padding:8px;vertical-align:top}.invtable th{background:#eef5f7;text-align:left}.plan{border-left:4px solid var(--c)}.warning{background:#fff7df;border-left:4px solid #e0a100;padding:10px;border-radius:6px;font-size:13px}
 @media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:10px}.card{border-radius:13px;padding:15px}}
 </style></head>
 <body><header><b>WIL<span>SAFE</span> IA</b><div style="font-size:12px;opacity:.8">Inspeção SST assistida</div></header>
@@ -30,7 +30,7 @@ function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&l
 function render(a){
  let html='<p><b>Resumo:</b> '+esc(a.resumo||'Análise concluída.')+'</p>';
  if(a.pior_cenario_plausivel) html+='<div class="warning"><b>Pior cenário plausível a investigar:</b> '+esc(a.pior_cenario_plausivel)+'</div>';
- (a.riscos||[]).forEach((r,i)=>{
+ window.ultimaAnalise=a;\n (a.riscos||[]).forEach((r,i)=>{
    html+='<div class="risk"><strong>'+esc(r.grupo)+' — '+esc(r.perigo)+'</strong>'+
    '<div><b>Fonte/circunstância:</b> '+esc(r.fonte||'A confirmar')+'</div>'+
    '<div><b>Exposição:</b> '+esc(r.exposicao||'A confirmar')+'</div>'+
@@ -39,7 +39,7 @@ function render(a){
    '<p>'+esc(r.justificativa||'')+'</p>'+
    ((r.medidas_sugeridas||[]).length?'<b>Medidas sugeridas</b><ul>'+r.medidas_sugeridas.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
    ((r.dados_a_confirmar||[]).length?'<b>Confirmar</b><ul>'+r.dados_a_confirmar.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
-   '<label style="font-weight:normal"><input type="checkbox" style="width:auto" checked> Aprovar para o inventário</label></div>';
+   '<div class="review"><label style="font-weight:normal"><input class="aprovar-risco" data-i="'+i+'" type="checkbox" style="width:auto" checked> Aprovar para o inventário</label><label>Correção / observação técnica (opcional)</label><textarea class="correcao-risco" data-i="'+i+'" placeholder="Ex.: manter medição anterior de 12/03/2025; confirmar FDS; ajustar fonte geradora..."></textarea></div></div>';
  });
  if((a.perguntas_prioritarias||[]).length) html+='<h2 style="margin-top:18px">Perguntas prioritárias</h2><ul class="actions">'+a.perguntas_prioritarias.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
  if((a.alertas||[]).length) html+='<h2>Alertas técnicos</h2><ul class="actions">'+a.alertas.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
