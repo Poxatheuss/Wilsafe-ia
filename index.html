@@ -43,9 +43,43 @@ function render(a){
  });
  if((a.perguntas_prioritarias||[]).length) html+='<h2 style="margin-top:18px">Perguntas prioritárias</h2><ul class="actions">'+a.perguntas_prioritarias.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
  if((a.alertas||[]).length) html+='<h2>Alertas técnicos</h2><ul class="actions">'+a.alertas.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
- html+='<button class="btn secondary" onclick="alert(\'Próxima etapa: salvar decisões e gerar Inventário + Plano de Ação.\')">Montar inventário</button>';
+ html+='<button class="btn secondary" onclick="montarInventario()">Montar inventário + plano de ação</button>';
  document.getElementById('content').innerHTML=html;
 }
+
+function montarInventario(){
+ const a=window.ultimaAnalise||{riscos:[]};
+ const aprovados=[];
+ document.querySelectorAll('.aprovar-risco').forEach(function(ch){
+   if(ch.checked){
+     const i=Number(ch.dataset.i);
+     const r=Object.assign({},a.riscos[i]||{});
+     const campo=document.querySelector('.correcao-risco[data-i="'+i+'"]');
+     const nota=campo?campo.value.trim():'';
+     if(nota) r.correcao_tecnica=nota;
+     aprovados.push(r);
+   }
+ });
+ if(!aprovados.length){alert('Aprove pelo menos um risco.');return;}
+ let h='<div class="card"><h2>Inventário de riscos — revisão técnica</h2>';
+ aprovados.forEach(function(r){
+   h+='<div class="risk"><strong>'+esc(r.grupo)+' — '+esc(r.perigo)+'</strong><div><b>Fonte:</b> '+esc(r.fonte||'A confirmar')+'</div><div><b>Exposição:</b> '+esc(r.exposicao||'A confirmar')+'</div><div><b>Possíveis danos:</b> '+esc(r.possiveis_danos||'A confirmar')+'</div>'+(r.correcao_tecnica?'<div><b>Observação técnica:</b> '+esc(r.correcao_tecnica)+'</div>':'')+'</div>';
+ });
+ h+='</div><div class="card"><h2>Plano de ação proposto</h2>';
+ let n=1;
+ aprovados.forEach(function(r){
+   (r.medidas_sugeridas||[]).forEach(function(m){
+     h+='<div class="risk"><strong>Ação '+(n++)+' — '+esc(r.perigo)+'</strong><div>'+esc(m)+'</div><label>Status</label><select><option>Proposta — revisar</option><option>Aprovada</option><option>Não aplicar</option><option>Concluída</option></select><label>Responsável / prazo</label><input placeholder="Preencher após validação"></div>';
+   });
+ });
+ h+='</div>';
+ let d=document.getElementById('saida-final');
+ if(!d){d=document.createElement('div');d.id='saida-final';document.querySelector('main').appendChild(d);}
+ d.innerHTML=h;
+ localStorage.setItem('wilsafe_inspecao_atual',JSON.stringify({empresa:empresa.value,unidade:unidade.value,setor:setor.value,funcao:funcao.value,riscos:aprovados}));
+ d.scrollIntoView({behavior:'smooth'});
+}
+
 async function analisar(){
  const btn=document.querySelector('.primary');
  const dados={empresa:empresa.value.trim(),unidade:unidade.value.trim(),setor:setor.value.trim(),funcao:funcao.value.trim(),atividade:obs.value.trim(),medidas_existentes:medidas.value.trim()};
