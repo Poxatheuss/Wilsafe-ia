@@ -1,7 +1,3 @@
-import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const SYSTEM = `Você é o motor técnico da WILSAFE IA, assistente de inspeção de SST no Brasil.
 Analise criticamente o levantamento sem inventar fatos. Trabalhe com múltiplas hipóteses e procure o pior cenário PLAUSÍVEL que mereça investigação, sem transformar hipótese em conclusão.
 REGRAS:
@@ -13,32 +9,50 @@ REGRAS:
 - Se houver medição anterior, preserve a data original.
 - Priorize perguntas que realmente mudariam a avaliação.
 - O técnico humano aprova ou rejeita tudo.
-Responda SOMENTE JSON válido no formato:
-{"resumo":"...","pior_cenario_plausivel":"...","riscos":[{"grupo":"...","perigo":"...","fonte":"...","exposicao":"...","possiveis_danos":"...","evidencia":"informado|inferido|a_confirmar","confianca":"alta|media|baixa","justificativa":"...","medidas_sugeridas":["..."],"dados_a_confirmar":["..."]}],"perguntas_prioritarias":["..."],"alertas":["..."]}`;
+Responda em português do Brasil.`;
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Método não permitido" });
-  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: "OPENAI_API_KEY não configurada no servidor." });
+const schema = {
+  type: "object",
+  properties: {
+    resumo: { type: "string" },
+    pior_cenario_plausivel: { type: "string" },
+    riscos: { type: "array", items: { type: "object", properties: {
+      grupo:{type:"string"}, perigo:{type:"string"}, fonte:{type:"string"},
+      exposicao:{type:"string"}, possiveis_danos:{type:"string"},
+      evidencia:{type:"string",enum:["informado","inferido","a_confirmar"]},
+      confianca:{type:"string",enum:["alta","media","baixa"]},
+      justificativa:{type:"string"},
+      medidas_sugeridas:{type:"array",items:{type:"string"}},
+      dados_a_confirmar:{type:"array",items:{type:"string"}}
+    }, required:["grupo","perigo","fonte","exposicao","possiveis_danos","evidencia","confianca","justificativa","medidas_sugeridas","dados_a_confirmar"] } },
+    perguntas_prioritarias:{type:"array",items:{type:"string"}},
+    alertas:{type:"array",items:{type:"string"}}
+  },
+  required:["resumo","pior_cenario_plausivel","riscos","perguntas_prioritarias","alertas"]
+};
 
-  try {
-    const dados = req.body || {};
-    const response = await openai.responses.create({
-      model: "gpt-5.6",
-      reasoning: { effort: "high" },
-      input: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: "Faça uma análise investigativa desta inspeção SST:\n" + JSON.stringify(dados) }
-      ]
+export default async function handler(req,res){
+  res.setHeader("Access-Control-Allow-Origin","*");
+  res.setHeader("Access-Control-Allow-Headers","Content-Type");
+  if(req.method==="OPTIONS") return res.status(204).end();
+  if(req.method!=="POST") return res.status(405).json({error:"Método não permitido"});
+  if(!process.env.GEMINI_API_KEY) return res.status(500).json({error:"GEMINI_API_KEY não configurada no servidor."});
+  try{
+    const prompt = SYSTEM+"\n\nFaça uma análise investigativa desta inspeção SST:\n"+JSON.stringify(req.body||{});
+    const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-goog-api-key":process.env.GEMINI_API_KEY},
+      body:JSON.stringify({
+        contents:[{role:"user",parts:[{text:prompt}]}],
+        generationConfig:{responseMimeType:"application/json",responseSchema:schema,thinkingConfig:{thinkingBudget:2048}}
+      })
     });
-    const raw = response.output_text || "";
-    let analysis;
-    try { analysis = JSON.parse(raw); }
-    catch { analysis = { resumo: raw, riscos: [], perguntas_prioritarias: [], alertas: ["A resposta precisará de revisão estrutural."] }; }
-    return res.status(200).json(analysis);
-  } catch (e) {
-    return res.status(500).json({ error: "Falha ao executar análise.", detail: e?.message || String(e) });
+    const data=await r.json();
+    if(!r.ok) return res.status(r.status).json({error:"Falha na API Gemini.",detail:data?.error?.message||"Erro desconhecido"});
+    const raw=data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+    if(!raw) return res.status(502).json({error:"Gemini não retornou conteúdo analisável."});
+    return res.status(200).json(JSON.parse(raw));
+  }catch(e){
+    return res.status(500).json({error:"Falha ao executar análise.",detail:e?.message||String(e)});
   }
 }
