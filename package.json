@@ -1,0 +1,9 @@
+{
+  "name": "wilsafe-ia",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "openai": "^6.0.0"
+  }
+}
