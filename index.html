@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WILSAFE IA — Inspeção SST</title>
+<style>
+:root{--b:#0b2038;--c:#12a9a2;--bg:#f3f6f8;--tx:#17212b;--mut:#657383}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--b);color:white;padding:18px 16px}header b{font-size:22px}header span{color:#75ddd8}
+main{max-width:820px;margin:auto;padding:16px}.card{background:white;border-radius:16px;padding:18px;margin:14px 0;box-shadow:0 4px 18px #00000010}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:0 0 14px}.muted{color:var(--mut);font-size:14px}
+label{font-weight:700;font-size:13px;display:block;margin:13px 0 6px}input,textarea,select{width:100%;padding:12px;border:1px solid #ccd5dc;border-radius:10px;font-size:16px;background:#fff}textarea{min-height:105px;resize:vertical}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.btn{border:0;border-radius:11px;padding:14px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:var(--c);color:white;width:100%;margin-top:16px}.secondary{background:#e9eff3;color:var(--b)}
+.badges{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.badge{background:#e7f8f7;color:#08756f;border-radius:20px;padding:6px 9px;font-size:12px}
+#result{display:none}.risk{border:1px solid #dce4e9;border-radius:12px;padding:13px;margin:10px 0}.risk strong{display:block;margin-bottom:5px}.actions{padding-left:20px}.warning{background:#fff7df;border-left:4px solid #e0a100;padding:10px;border-radius:6px;font-size:13px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:10px}.card{border-radius:13px;padding:15px}}
+</style></head>
+<body><header><b>WIL<span>SAFE</span> IA</b><div style="font-size:12px;opacity:.8">Inspeção SST assistida</div></header>
+<main>
+<div class="card"><h1>Nova inspeção assistida</h1><div class="muted">Informe o que você sabe. O sistema organiza o levantamento e aponta o que precisa ser confirmado.</div>
+<div class="grid"><div><label>Empresa</label><input id="empresa" placeholder="Nome da empresa"></div><div><label>Unidade</label><input id="unidade" placeholder="Unidade / obra"></div></div>
+<div class="grid"><div><label>Setor</label><input id="setor" placeholder="Ex.: Pintura"></div><div><label>Função</label><input id="funcao" placeholder="Ex.: Pintor"></div></div>
+<label>Descrição da atividade / o que foi observado</label><textarea id="obs" placeholder="Ex.: aplica primer e tinta com pistola pneumática em área aberta, faz mistura de produtos..."></textarea>
+<label>Medidas de prevenção já existentes</label><textarea id="medidas" placeholder="EPIs, EPCs, procedimentos, treinamentos..."></textarea>
+<div class="badges"><span class="badge">Físicos</span><span class="badge">Químicos</span><span class="badge">Biológicos</span><span class="badge">Ergonômicos</span><span class="badge">Acidentes</span><span class="badge">Psicossociais</span></div>
+<button class="btn primary" onclick="analisar()">Gerar análise completa</button></div>
+
+<div id="result" class="card"><h2>Pré-análise para revisão técnica</h2><div class="warning">Protótipo: nenhuma medição, concentração, CA, limite ou resultado quantitativo é inventado. Dados ausentes ficam para confirmação.</div><div id="content"></div></div>
+</main>
+<script>
+function esc(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function analisar(){
+ const o=document.getElementById('obs').value.trim(), f=document.getElementById('funcao').value.trim(), s=document.getElementById('setor').value.trim();
+ const txt=(o+' '+f+' '+s).toLowerCase(); let risks=[];
+ if(/pint|primer|tinta|solvente|thinner|qu[ií]mic|produto/.test(txt)) risks.push(['Químico','Possível exposição a vapores, névoas ou contato com produtos químicos.','Confirmar produtos utilizados e anexar FDS; avaliar necessidade de avaliação quantitativa conforme agente e critério aplicável.']);
+ if(/ru[ií]do|pneum|lix|m[aá]quina|equipamento/.test(txt)) risks.push(['Físico — Ruído','Possível exposição a ruído contínuo ou intermitente.','Confirmar fontes, tempo de exposição e existência de dosimetria. Sem medição informada: nível a avaliar.']);
+ if(/carga|peso|levanta|transport|postura|repet|manual/.test(txt)) risks.push(['Ergonômico','Possível exigência física, movimentação manual de cargas ou postura inadequada.','Detalhar peso, frequência, distâncias e condições reais; avaliar na AET quando aplicável.']);
+ if(/altura|queda|escada|corte|perfura|rotativ|lixadeira|piso|choque/.test(txt)) risks.push(['Acidente','Há indícios de perigo de acidente conforme a atividade descrita.','Confirmar máquinas, ferramentas, proteções, organização do local e procedimentos existentes.']);
+ if(/press[aã]o|meta|concentra|aten[cç][aã]o|conflito|ass[eé]dio|sobrecarga/.test(txt)) risks.push(['Psicossocial / organização do trabalho','Há fatores relatados que precisam ser investigados no contexto da organização do trabalho.','Realizar avaliação estruturada, sem concluir exposição apenas por inferência.']);
+ if(!risks.length) risks.push(['Levantamento insuficiente','Ainda não há elementos suficientes para sugerir perigos com segurança.','Descreva máquinas, produtos, ferramentas, ambiente, esforço físico, rotina e situações de acidente observadas.']);
+ let html='<p><b>Setor:</b> '+esc(s||'A confirmar')+' &nbsp; <b>Função:</b> '+esc(f||'A confirmar')+'</p>';
+ risks.forEach((r,i)=>html+='<div class="risk"><strong>'+esc(r[0])+'</strong><div>'+esc(r[1])+'</div><p class="muted"><b>Próxima ação:</b> '+esc(r[2])+'</p><label style="font-weight:normal"><input type="checkbox" style="width:auto" checked> Aprovar para o inventário</label></div>');
+ html+='<h2 style="margin-top:18px">Perguntas que faltam</h2><ul class="actions"><li>Qual a jornada e o tempo real de exposição?</li><li>Quais máquinas, ferramentas e produtos são utilizados?</li><li>Existem FDS dos produtos químicos?</li><li>Há avaliações quantitativas anteriores? Se sim, manter a data original da medição.</li><li>Quais EPIs/EPCs são utilizados e como é verificada sua eficácia?</li></ul><button class="btn secondary" onclick="alert(\'Próxima etapa: salvar inspeção e gerar Inventário + Plano de Ação.\')">Montar inventário</button>';
+ document.getElementById('content').innerHTML=html; document.getElementById('result').style.display='block'; document.getElementById('result').scrollIntoView({behavior:'smooth'});
+}
+</script></body></html>
