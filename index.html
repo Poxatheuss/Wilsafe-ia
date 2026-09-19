@@ -26,19 +26,40 @@ label{font-weight:700;font-size:13px;display:block;margin:13px 0 6px}input,texta
 <div id="result" class="card"><h2>Pré-análise para revisão técnica</h2><div class="warning">Protótipo: nenhuma medição, concentração, CA, limite ou resultado quantitativo é inventado. Dados ausentes ficam para confirmação.</div><div id="content"></div></div>
 </main>
 <script>
-function esc(s){return (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function analisar(){
- const o=document.getElementById('obs').value.trim(), f=document.getElementById('funcao').value.trim(), s=document.getElementById('setor').value.trim();
- const txt=(o+' '+f+' '+s).toLowerCase(); let risks=[];
- if(/pint|primer|tinta|solvente|thinner|qu[ií]mic|produto/.test(txt)) risks.push(['Químico','Possível exposição a vapores, névoas ou contato com produtos químicos.','Confirmar produtos utilizados e anexar FDS; avaliar necessidade de avaliação quantitativa conforme agente e critério aplicável.']);
- if(/ru[ií]do|pneum|lix|m[aá]quina|equipamento/.test(txt)) risks.push(['Físico — Ruído','Possível exposição a ruído contínuo ou intermitente.','Confirmar fontes, tempo de exposição e existência de dosimetria. Sem medição informada: nível a avaliar.']);
- if(/carga|peso|levanta|transport|postura|repet|manual/.test(txt)) risks.push(['Ergonômico','Possível exigência física, movimentação manual de cargas ou postura inadequada.','Detalhar peso, frequência, distâncias e condições reais; avaliar na AET quando aplicável.']);
- if(/altura|queda|escada|corte|perfura|rotativ|lixadeira|piso|choque/.test(txt)) risks.push(['Acidente','Há indícios de perigo de acidente conforme a atividade descrita.','Confirmar máquinas, ferramentas, proteções, organização do local e procedimentos existentes.']);
- if(/press[aã]o|meta|concentra|aten[cç][aã]o|conflito|ass[eé]dio|sobrecarga/.test(txt)) risks.push(['Psicossocial / organização do trabalho','Há fatores relatados que precisam ser investigados no contexto da organização do trabalho.','Realizar avaliação estruturada, sem concluir exposição apenas por inferência.']);
- if(!risks.length) risks.push(['Levantamento insuficiente','Ainda não há elementos suficientes para sugerir perigos com segurança.','Descreva máquinas, produtos, ferramentas, ambiente, esforço físico, rotina e situações de acidente observadas.']);
- let html='<p><b>Setor:</b> '+esc(s||'A confirmar')+' &nbsp; <b>Função:</b> '+esc(f||'A confirmar')+'</p>';
- risks.forEach((r,i)=>html+='<div class="risk"><strong>'+esc(r[0])+'</strong><div>'+esc(r[1])+'</div><p class="muted"><b>Próxima ação:</b> '+esc(r[2])+'</p><label style="font-weight:normal"><input type="checkbox" style="width:auto" checked> Aprovar para o inventário</label></div>');
- html+='<h2 style="margin-top:18px">Perguntas que faltam</h2><ul class="actions"><li>Qual a jornada e o tempo real de exposição?</li><li>Quais máquinas, ferramentas e produtos são utilizados?</li><li>Existem FDS dos produtos químicos?</li><li>Há avaliações quantitativas anteriores? Se sim, manter a data original da medição.</li><li>Quais EPIs/EPCs são utilizados e como é verificada sua eficácia?</li></ul><button class="btn secondary" onclick="alert(\'Próxima etapa: salvar inspeção e gerar Inventário + Plano de Ação.\')">Montar inventário</button>';
- document.getElementById('content').innerHTML=html; document.getElementById('result').style.display='block'; document.getElementById('result').scrollIntoView({behavior:'smooth'});
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(a){
+ let html='<p><b>Resumo:</b> '+esc(a.resumo||'Análise concluída.')+'</p>';
+ if(a.pior_cenario_plausivel) html+='<div class="warning"><b>Pior cenário plausível a investigar:</b> '+esc(a.pior_cenario_plausivel)+'</div>';
+ (a.riscos||[]).forEach((r,i)=>{
+   html+='<div class="risk"><strong>'+esc(r.grupo)+' — '+esc(r.perigo)+'</strong>'+
+   '<div><b>Fonte/circunstância:</b> '+esc(r.fonte||'A confirmar')+'</div>'+
+   '<div><b>Exposição:</b> '+esc(r.exposicao||'A confirmar')+'</div>'+
+   '<div><b>Possíveis danos:</b> '+esc(r.possiveis_danos||'A confirmar')+'</div>'+
+   '<p class="muted"><b>Base:</b> '+esc(r.evidencia||'a_confirmar')+' · <b>Confiança:</b> '+esc(r.confianca||'baixa')+'</p>'+
+   '<p>'+esc(r.justificativa||'')+'</p>'+
+   ((r.medidas_sugeridas||[]).length?'<b>Medidas sugeridas</b><ul>'+r.medidas_sugeridas.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
+   ((r.dados_a_confirmar||[]).length?'<b>Confirmar</b><ul>'+r.dados_a_confirmar.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'')+
+   '<label style="font-weight:normal"><input type="checkbox" style="width:auto" checked> Aprovar para o inventário</label></div>';
+ });
+ if((a.perguntas_prioritarias||[]).length) html+='<h2 style="margin-top:18px">Perguntas prioritárias</h2><ul class="actions">'+a.perguntas_prioritarias.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+ if((a.alertas||[]).length) html+='<h2>Alertas técnicos</h2><ul class="actions">'+a.alertas.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
+ html+='<button class="btn secondary" onclick="alert(\'Próxima etapa: salvar decisões e gerar Inventário + Plano de Ação.\')">Montar inventário</button>';
+ document.getElementById('content').innerHTML=html;
+}
+async function analisar(){
+ const btn=document.querySelector('.primary');
+ const dados={empresa:empresa.value.trim(),unidade:unidade.value.trim(),setor:setor.value.trim(),funcao:funcao.value.trim(),atividade:obs.value.trim(),medidas_existentes:medidas.value.trim()};
+ document.getElementById('result').style.display='block';
+ document.getElementById('content').innerHTML='<p><b>WILSAFE IA está investigando a atividade...</b></p><p class="muted">Levantando hipóteses, lacunas e pior cenário plausível.</p>';
+ document.getElementById('result').scrollIntoView({behavior:'smooth'});
+ btn.disabled=true; btn.textContent='Analisando...';
+ try{
+   const r=await fetch('/api/analisar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(dados)});
+   const a=await r.json();
+   if(!r.ok) throw new Error(a.detail||a.error||'Erro na análise');
+   render(a);
+ }catch(e){
+   document.getElementById('content').innerHTML='<div class="warning"><b>Não foi possível executar a IA.</b><br>'+esc(e.message)+'</div>';
+ }finally{btn.disabled=false;btn.textContent='Gerar análise completa';}
 }
 </script></body></html>
